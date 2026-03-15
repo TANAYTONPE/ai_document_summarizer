@@ -1,0 +1,105 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Document Summarizer</title>
+
+    <style>
+
+        body{
+            font-family: Arial;
+            background:#f5f7fb;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+        }
+
+        .card{
+            background:white;
+            padding:40px;
+            border-radius:12px;
+            box-shadow:0 10px 30px rgba(0,0,0,0.1);
+            width:420px;
+            text-align:center;
+        }
+
+        h1{
+            color:#2b6cb0;
+            margin-bottom:20px;
+        }
+
+        input{
+            margin-top:15px;
+        }
+
+        button{
+            margin-top:20px;
+            background:#2b6cb0;
+            color:white;
+            border:none;
+            padding:12px 25px;
+            border-radius:8px;
+            cursor:pointer;
+            font-size:16px;
+        }
+
+        button:hover{
+            background:#1e4e8c;
+        }
+
+        #summary{
+            margin-top:25px;
+            background:#edf2f7;
+            padding:15px;
+            border-radius:8px;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+    <h1>AI Document Summarizer</h1>
+
+    <input type="file" id="file">
+
+    <br>
+
+    <button onclick="upload()">Summarize</button>
+
+    <div id="summary"></div>
+
+</div>
+
+<script>
+
+function upload(){
+
+    let fileInput = document.getElementById("file")
+ if(fileInput.files.length === 0){
+    alert("Please select a file")
+    return
+ }
+    let formData = new FormData()
+
+    formData.append("file", fileInput.files[0])
+
+    fetch("/summarize",{
+        method:"POST",
+        body:formData
+    })
+    .then(res=>res.json())
+    .then(data=>{
+        document.getElementById("summary").innerText = data.summary || data.error
+    })
+
+}
+
+</script>
+
+</body>
+</html>
