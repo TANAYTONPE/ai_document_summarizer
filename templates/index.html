@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Document Summarizer</title>
+  <title>HHT AI Document Summarizer</title>
+  <!-- Browser Tab Icon (Favicon) -->
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo2.png') }}">
+  
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -24,7 +27,7 @@
       /* Curved line aesthetic */
       background: #ffffff;
       border-bottom: 2px solid #BBDEFB;
-      border-radius: 0 0 50% 50% / 0 0 20px 20px;
+      border-radius: 0;
       box-shadow: 0 4px 20px rgba(30, 136, 229, 0.04);
     }
     
@@ -44,6 +47,74 @@
       font-weight: 700;
       color: #1E88E5;
     }
+
+    .history-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #F0F7FF;
+      color: #1E88E5;
+      border: 1px solid #BBDEFB;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease;
+    }
+    .history-btn:hover { 
+      background: #E3F0FF; 
+      transform: translateY(-3px);
+      box-shadow: 0 6px 16px rgba(30, 136, 229, 0.15); 
+    }
+
+    /* ── Sidebar (History) ── */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      right: -360px;
+      width: 360px;
+      height: 100vh;
+      background: #ffffff;
+      box-shadow: -4px 0 30px rgba(30,136,229,0.1);
+      padding: 2rem 1.5rem;
+      transition: right 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+      z-index: 1000;
+      overflow-y: auto;
+      font-family: 'Inter', sans-serif;
+    }
+    .sidebar.open { right: 0; }
+    .sidebar-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1.5rem; border-bottom: 1px solid #e0eaf7; padding-bottom: 1rem;
+    }
+    .sidebar-title { font-family: 'Sora', sans-serif; font-weight: 700; color: #0D1B2A; font-size: 1.25rem; }
+    .close-btn { background: none; border: none; cursor: pointer; color: #7a8ea0; transition: color 0.15s; }
+    .close-btn:hover { color: #1E88E5; }
+    
+    .history-card {
+      position: relative;
+      background: #ffffff; border: 1px solid #e0eaf7; border-radius: 12px;
+      padding: 1.25rem; margin-bottom: 1rem; cursor: pointer;
+      transition: border-color 0.2s, transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease;
+    }
+    .history-card:hover { 
+      border-color: #1E88E5; 
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(30, 136, 229, 0.08); 
+    }
+    .history-card:hover .delete-btn { opacity: 1; }
+
+    .delete-btn {
+      position: absolute; top: 14px; right: 14px; background: none; border: none;
+      color: #ff5252; opacity: 0; cursor: pointer; padding: 4px;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .delete-btn:hover { transform: scale(1.15); }
+    .history-filename { font-size: 0.95rem; font-weight: 600; color: #1a2533; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 28px; }
+    .history-meta { font-size: 0.8rem; color: #7a8ea0; display:flex; justify-content:space-between; }
+    .history-empty { text-align: center; color: #7a8ea0; font-size: 0.95rem; margin-top: 2.5rem; }
 
     .wrap {
       max-width: 760px;
@@ -112,11 +183,16 @@
       text-align: center;
       cursor: pointer;
       position: relative;
-      transition: border-color 0.2s, background 0.2s, transform 0.2s;
+      transition: border-color 0.2s, background 0.2s, transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease;
       margin-bottom: 1rem;
     }
 
-    .upload-card:hover  { border-color: #1E88E5; background: #F5FAFF; }
+    .upload-card:hover { 
+      border-color: #1E88E5; 
+      background: #F5FAFF; 
+      transform: translateY(-4px); 
+      box-shadow: 0 10px 24px rgba(30, 136, 229, 0.08); 
+    }
     .upload-card.dragging { border-color: #1565C0; background: #E3F0FF; transform: scale(1.01); }
 
     .upload-icon {
@@ -241,13 +317,13 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+      transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease, opacity 0.2s ease;
       font-family: 'Inter', sans-serif;
     }
 
     .btn-main:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(30, 136, 229, 0.35);
+      transform: translateY(-3px);
+      box-shadow: 0 10px 24px rgba(30, 136, 229, 0.4);
     }
 
     .btn-main:active  { transform: translateY(0); }
@@ -334,10 +410,14 @@
       border-radius: 6px;
       cursor: pointer;
       font-family: 'Inter', sans-serif;
-      transition: background 0.15s;
+      transition: background 0.2s, transform 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .copy-btn:hover { background: rgba(255,255,255,0.3); }
+    .copy-btn:hover { 
+      background: rgba(255,255,255,0.3); 
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
 
     .result-body {
       background: #fff;
@@ -384,7 +464,27 @@
     <a href="#" class="nav-logo" title="Home (Disconnected)">
       <img src="{{ url_for('static', filename='logo.png') }}" alt="Company Logo" class="logo-img">
     </a>
+    <div style="flex-grow: 1;"></div>
+    <button class="history-btn" onclick="toggleHistory()" title="View Past Summaries">
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+      </svg>
+      History
+    </button>
   </nav>
+
+<!-- History Sidebar -->
+<div class="sidebar" id="historySidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-title">Library</div>
+    <button class="close-btn" onclick="toggleHistory()" title="Close">
+      <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+  <div id="historyList"></div>
+</div>
 
 <div class="wrap">
 
@@ -416,6 +516,9 @@
     <span class="fmt">PDF</span>
     <span class="fmt">DOCX</span>
     <span class="fmt">TXT</span>
+    <span class="fmt">PNG</span>
+    <span class="fmt">JPG</span>
+    <span class="fmt">JPEG</span>
     <span class="fmt">Up to 25 MB</span>
   </div>
 
@@ -610,6 +713,76 @@
       btn.textContent = 'Copied!';
       setTimeout(() => btn.textContent = 'Copy', 1800);
     });
+  }
+
+  // --- History Logic ---
+  let cachedHistory = [];
+  
+  async function loadHistory() {
+    const list = document.getElementById('historyList');
+    list.innerHTML = '<div class="history-empty">Loading your library...</div>';
+    
+    try {
+      const res = await fetch('/history');
+      const data = await res.json();
+      cachedHistory = data.history;
+      
+      if (cachedHistory.length === 0) {
+        list.innerHTML = '<div class="history-empty">No summaries saved yet!</div>';
+        return;
+      }
+      
+      list.innerHTML = cachedHistory.map((item, index) => `
+        <div class="history-card" onclick="loadSummaryFromHistory(${index})">
+          <button class="delete-btn" onclick="deleteHistory(${item.id}, event)" title="Delete Summary">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+          <div class="history-filename">${item.filename}</div>
+          <div class="history-meta">
+            <span>${item.created_at}</span>
+            <span>${item.word_count} words</span>
+          </div>
+        </div>
+      `).join('');
+    } catch(e) {
+      list.innerHTML = '<div class="history-empty" style="color:#d32f2f;">Failed to fetch history</div>';
+    }
+  }
+
+  async function deleteHistory(id, event) {
+    event.stopPropagation(); // Prevent the card from trying to load the summary
+    if (!confirm("Are you sure you want to permanently delete this summary?")) return;
+    
+    try {
+      await fetch('/history/' + id, { method: 'DELETE' });
+      loadHistory(); // Refresh the sidebar
+    } catch (e) {
+      alert("Failed to delete the summary from the database.");
+    }
+  }
+
+  function toggleHistory() {
+    const sb = document.getElementById('historySidebar');
+    if (!sb.classList.contains('open')) { loadHistory(); }
+    sb.classList.toggle('open');
+  }
+
+  function loadSummaryFromHistory(index) {
+    const item = cachedHistory[index];
+    document.getElementById('summaryText').textContent = item.summary;
+    
+    const readTime = Math.max(1, Math.round(item.word_count / 200));
+    document.getElementById('statsRow').innerHTML = `
+      <div class="stat"><div class="stat-val">${item.word_count}</div><div class="stat-label">Words</div></div>
+      <div class="stat"><div class="stat-val">${readTime} min</div><div class="stat-label">Read time</div></div>
+      <div class="stat"><div class="stat-val">History</div><div class="stat-label">Restored</div></div>
+    `;
+    
+    document.getElementById('result').classList.add('show');
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    toggleHistory(); // Dismiss sidebar
   }
 </script>
 
