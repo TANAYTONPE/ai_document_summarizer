@@ -1,11 +1,18 @@
 from flask import Flask, request, jsonify, render_template
+from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
 import os
 import sqlite3
 from datetime import datetime
 from file_utils import extract_text
 from summarizer import generate_summary
 
+# Securely bind the Gemini Cloud API credentials from the .env environment matrix
+load_dotenv()
+
 app = Flask(__name__)
+# Security: Hard limit total upload payload to 25MB to prevent physical server RAM explosion crashes
+app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
 
 UPLOAD_FOLDER = "uploads"
 DB_FILE = "history.db"
@@ -42,26 +49,33 @@ def summarize():
     if file.filename == "":
         return jsonify({"error": "Empty filename"}), 400
 
-    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+    # Architecture fix: Safely encode filename to prevent Hackers passing path traversal bugs (e.g. ../../../app.py)
+    safe_filename = secure_filename(file.filename)
+    file_path = os.path.join(UPLOAD_FOLDER, safe_filename)
     file.save(file_path)
 
-    text = extract_text(file_path)
-    if not text.strip():
-        return jsonify({"error": "Could not extract text from file"}), 400
+    try:
+        text = extract_text(file_path)
+        if not text.strip():
+            return jsonify({"error": "Could not extract text from file"}), 400
 
-    summary = generate_summary(text)
+        summary = generate_summary(text)
 
-    # Automatically save generated log into persistent history.db
-    word_count = len(summary.split())
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    # Log date format: "YYYY-MM-DD HH:MM"
-    c.execute("INSERT INTO summaries (filename, summary, word_count, created_at) VALUES (?, ?, ?, ?)",
-              (file.filename, summary, word_count, datetime.now().strftime("%Y-%m-%d %H:%M")))
-    conn.commit()
-    conn.close()
+        # Automatically save generated log into persistent history.db
+        word_count = len(summary.split())
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        # Log date format: "YYYY-MM-DD HH:MM"
+        c.execute("INSERT INTO summaries (filename, summary, word_count, created_at) VALUES (?, ?, ?, ?)",
+                  (safe_filename, summary, word_count, datetime.now().strftime("%Y-%m-%d %H:%M")))
+        conn.commit()
+        conn.close()
 
-    return jsonify({"summary": summary})
+        return jsonify({"summary": summary})
+    finally:
+        # Architecture fix: Force self-clean destruct of file after reading to stop extreme Hard-Drive storage bloat
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
 @app.route("/history", methods=["GET"])
 def get_history():

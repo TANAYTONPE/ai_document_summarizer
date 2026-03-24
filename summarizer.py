@@ -1,100 +1,33 @@
-from huggingface_hub import login
+import os
+import google.generativeai as genai
+from dotenv import load_dotenv
 
+# Force load the hidden .env variables before authentication so the API key doesn't return None
+load_dotenv()
 
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-import torch
-import re
-MODEL_NAME = "facebook/bart-large-cnn"
+# Securely configure the API key imported from the backend environment
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
-
-
-def split_text(text, chunk_size=800):
-
-    words = text.split()
-    chunks = []
-
-    for i in range(0, len(words), chunk_size):
-        chunk = " ".join(words[i:i+chunk_size])
-        chunks.append(chunk)
-
-    return chunks
-
-
-def summarize_chunk(chunk):
-
-    inputs = tokenizer(
-        chunk,
-        return_tensors="pt",
-        max_length=1024,
-        truncation=True
-    )
-
-    summary_ids = model.generate(
-        inputs["input_ids"],
-        max_length=150,
-        min_length=40,
-        length_penalty=2.0,
-        num_beams=4,
-        forced_bos_token_id=tokenizer.bos_token_id
-    )
-
-    return tokenizer.decode(summary_ids[0], skip_special_tokens=True)
-
+# Initialize the lightning fast Gemini 2.5 Flash model specifically designed for massive context handling
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 def generate_summary(text):
-
-    # Images often contain very little text. 
-    # If the text is already short, summarization will fail or hallucinate due to min_length constraints.
+    # Safeguard: Images often contain very little text. 
+    # If the text is incredibly short, it takes less time to read than summarization API latency.
     if len(text.split()) < 40:
         return text
 
-    chunk_size = 1000
-    chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+    # Since Gemini 1.5 Flash has a massive 1M token context window, 
+    # we completely bypass the old Map-Reduce chunking logic.
+    # However, to prevent massively dense 10MB+ files from exceeding Google's maximum REST JSON payload limit,
+    # we logically cap the extraction buffer to the first 500,000 characters (~125,000 tokens).
+    safe_text = text[:500000]
 
-    chunk_summaries = []
-
-    for chunk in chunks:
-
-        inputs = tokenizer(
-            chunk,
-            return_tensors="pt",
-            truncation=True
-        )
-
-        summary_ids = model.generate(
-            inputs["input_ids"],
-            max_length=130,
-            min_length=30,
-            num_beams=4
-        )
-
-        summary = tokenizer.decode(
-            summary_ids[0],
-            skip_special_tokens=True
-        )
-
-        chunk_summaries.append(summary)
-
-    combined_summary = " ".join(chunk_summaries)
-
-    inputs = tokenizer(
-        combined_summary,
-        return_tensors="pt",
-        truncation=True
-    )
-
-    final_ids = model.generate(
-        inputs["input_ids"],
-        max_length=150,
-        min_length=40,
-        num_beams=4
-    )
-
-    final_summary = tokenizer.decode(
-        final_ids[0],
-        skip_special_tokens=True
-    )
-
-    return final_summary
+    prompt = f"Please aggressively read the following document and write a very clear, concise, highly intelligent summary covering all the main structural points in roughly 150 words.\n\nDOCUMENT CONTENT:\n{safe_text}"
+    
+    try:
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        print(f"Gemini API Error: {e}")
+        return "A cloud error occurred while communicating with the Gemini AI. Please check your network or API limits and try again."
